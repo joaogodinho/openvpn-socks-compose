@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  openvpn:
+    image: dperson/openvpn-client
+    # Use DNS from VPN
+    command: "-d"
+    volumes:
+      - ./openvpn/vpn:/vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    networks:
+      default:
+        aliases:
+          - socks
+    restart: unless-stopped
+  # This container will restart until openvpn is running with the tun0 created
+  dante:
+    image: vimagick/dante
+    volumes:
+      - ./dante/etc/dante:/etc/dante
+    tmpfs:
+      - /run
+    depends_on:
+      - openvpn
+    restart: unless-stopped
+    # Use the openvpn network stack
+    network_mode: "service:openvpn"
+  # Example container, test the SOCKS inside with: curl -x socks5h://socks:1080 ifconfig.me
+  nginx:
+    image: nginx
+    depends_on:
+      - dante
